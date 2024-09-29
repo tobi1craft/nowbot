@@ -20,7 +20,7 @@ import org.jetbrains.annotations.NotNull;
 
 public class EventManager implements EventListener {
 
-    MongoDatabase database = NowBot.getDatabase();
+    MongoDatabase database = Database.get();
 
     @Override
     public void onEvent(@NotNull GenericEvent event) {

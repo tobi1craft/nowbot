@@ -23,7 +23,7 @@ public class AutoVoice {
     private static MongoCollection<Document> collection;
 
     public static void init() {
-        MongoDatabase database = NowBot.getDatabase();
+        MongoDatabase database = Database.get();
         collection = database.getCollection("autoChannel");
     }
 
@@ -67,13 +67,13 @@ public class AutoVoice {
                     messageReceivedEvent.getChannel().asVoiceChannel().modifyStatus(arg).queue();
                     break;
                 default:
-                    messageReceivedEvent.getMessage().addReaction(Emoji.fromFormatted("x")).queue();
+                    messageReceivedEvent.getMessage().addReaction(Emoji.fromFormatted("❌")).queue();
                     return;
             }
             collection.updateOne(new Document("channelId", messageReceivedEvent.getChannel().getIdLong()), new Document("$set", new Document("isAuto", false)));
         } else {
             if (!Settings.containsSetting(messageReceivedEvent.getGuild().getIdLong(), "autoVoiceRoleToOverridePermissionsId")) {
-                messageReceivedEvent.getMessage().addReaction(Emoji.fromFormatted("x")).queue();
+                messageReceivedEvent.getMessage().addReaction(Emoji.fromFormatted("❌")).queue();
                 return;
             }
             long roleId = Settings.getSettingAsLong(messageReceivedEvent.getGuild().getIdLong(), "autoVoiceRoleToOverridePermissionsId");
@@ -107,11 +107,11 @@ public class AutoVoice {
                     collection.updateOne(new Document("channelId", messageReceivedEvent.getChannel().getIdLong()), new Document("$set", new Document("isAuto", true)));
                     break;
                 default:
-                    messageReceivedEvent.getMessage().addReaction(Emoji.fromFormatted("x")).queue();
+                    messageReceivedEvent.getMessage().addReaction(Emoji.fromFormatted("❌")).queue();
                     return;
             }
         }
-        messageReceivedEvent.getMessage().addReaction(Emoji.fromFormatted("white_check_mark")).queue();
+        messageReceivedEvent.getMessage().addReaction(Emoji.fromFormatted("✅")).queue();
     }
 
     /**

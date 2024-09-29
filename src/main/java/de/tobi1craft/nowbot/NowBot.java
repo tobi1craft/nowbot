@@ -1,9 +1,5 @@
 package de.tobi1craft.nowbot;
 
-import com.mongodb.*;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import io.github.cdimascio.dotenv.Dotenv;
 import net.dv8tion.jda.api.JDA;
@@ -13,7 +9,6 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bson.Document;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,9 +22,8 @@ public class NowBot {
      * List of slash commands to be registered with the bot.
      */
     public static final List<SlashCommandData> commands = new ArrayList<>();
-    private static final Logger logger = LogManager.getLogger(NowBot.class);
+    public static final Logger logger = LogManager.getLogger(NowBot.class);
     private static Dotenv dotenv;
-    private static MongoDatabase database;
 
     public static void main(String[] args) {
         logger.info("Hello world!");
@@ -37,22 +31,7 @@ public class NowBot {
         // Load environment variables from .env file
         dotenv = Dotenv.configure().ignoreIfMalformed().ignoreIfMissing().load();
 
-        // Configure MongoDB server API version
-        ServerApi serverApi = ServerApi.builder().version(ServerApiVersion.V1).build();
-
-        // Build MongoDB client settings with connection string and server API
-        MongoClientSettings settings = MongoClientSettings.builder().applyConnectionString(new ConnectionString(getEnv("DATABASE_URI", true))).serverApi(serverApi).build();
-
-        // Connect to MongoDB and send a ping to confirm connection
-        try (MongoClient mongoClient = MongoClients.create(settings)) {
-            try {
-                database = mongoClient.getDatabase("nowbot");
-                database.runCommand(new Document("ping", 1));
-                logger.info("Pinged deployment. Successfully connected to MongoDB!");
-            } catch (MongoException e) {
-                logger.error(e);
-            }
-        }
+        Database.init();
 
         // Init Bot
         Language.initLanguages();
@@ -116,9 +95,5 @@ public class NowBot {
             }
         }
         return variable;
-    }
-
-    public static MongoDatabase getDatabase() {
-        return database;
     }
 }
