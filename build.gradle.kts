@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "de.tobi1craft.nowbot"
-version = "0.3.0"
+version = "0.3.2"
 
 repositories {
     mavenCentral()
