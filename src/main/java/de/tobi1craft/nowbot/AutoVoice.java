@@ -29,8 +29,10 @@ public class AutoVoice {
 
     public static void genericUserPresenceEvent(GenericUserPresenceEvent e) {
         // Iterate through created channels and update their names and statuses based on user presence
+        long guildId = e.getGuild().getIdLong();
         FindIterable<Document> channels = collection.find();
         for (Document channel : channels) {
+            if (guildId != channel.getLong("guildId")) continue;
             long channelId = channel.getLong("channelId");
             VoiceChannel voiceChannel = Objects.requireNonNull(e.getGuild().getVoiceChannelById(channelId));
             if (voiceChannel.getMembers().contains(e.getMember())) updateTitleAndStatus(voiceChannel);
@@ -39,7 +41,7 @@ public class AutoVoice {
 
 
     public static void messageReceivedEvent(MessageReceivedEvent messageReceivedEvent) {
-        Document channelData = collection.find(new Document("channelId", messageReceivedEvent.getChannel().getIdLong())).first();
+        Document channelData = collection.find(new Document("guildId", messageReceivedEvent.getGuild().getIdLong()).append("channelId", messageReceivedEvent.getChannel().getIdLong())).first();
         if (channelData == null) return;
         Message message = messageReceivedEvent.getMessage();
         String content = message.getContentRaw();
@@ -70,7 +72,7 @@ public class AutoVoice {
                     messageReceivedEvent.getMessage().addReaction(Emoji.fromFormatted("❌")).queue();
                     return;
             }
-            collection.updateOne(new Document("channelId", messageReceivedEvent.getChannel().getIdLong()), new Document("$set", new Document("isAuto", false)));
+            collection.updateOne(new Document("guildId", messageReceivedEvent.getGuild().getIdLong()).append("channelId", messageReceivedEvent.getChannel().getIdLong()), new Document("$set", new Document("isAuto", false)));
         } else {
             if (!Settings.containsSetting(messageReceivedEvent.getGuild().getIdLong(), "autoVoiceRoleToOverridePermissionsId")) {
                 messageReceivedEvent.getMessage().addReaction(Emoji.fromFormatted("❌")).queue();
@@ -104,7 +106,7 @@ public class AutoVoice {
                 case "auto":
                 case "automatic":
                     updateTitleAndStatus(messageReceivedEvent.getChannel().asVoiceChannel());
-                    collection.updateOne(new Document("channelId", messageReceivedEvent.getChannel().getIdLong()), new Document("$set", new Document("isAuto", true)));
+                    collection.updateOne(new Document("guildId", messageReceivedEvent.getGuild().getIdLong()).append("channelId", messageReceivedEvent.getChannel().getIdLong()), new Document("$set", new Document("isAuto", true)));
                     break;
                 default:
                     messageReceivedEvent.getMessage().addReaction(Emoji.fromFormatted("❌")).queue();
@@ -134,7 +136,8 @@ public class AutoVoice {
                                 guild.moveVoiceMember(user, voiceChannel).queue();
                                 voiceChannel.getManager().setBitrate(guild.getMaxBitrate()).queue();
 
-                                Document channelData = new Document("channelId", voiceChannel.getIdLong())
+                                Document channelData = new Document("guildId", guild.getIdLong())
+                                        .append("channelId", voiceChannel.getIdLong())
                                         .append("creatorId", user.getIdLong())
                                         .append("isAuto", true);
                                 collection.insertOne(channelData);
@@ -145,6 +148,7 @@ public class AutoVoice {
                     // If the member joined a different auto voice channel, update the name and status of the channel
                     FindIterable<Document> channels = collection.find();
                     for (Document channel : channels) {
+                        if (guild.getIdLong() != channel.getLong("guildId")) continue;
                         long channelId = channel.getLong("channelId");
                         if (guildVoiceUpdateEvent.getChannelJoined().getIdLong() != channelId) continue;
                         updateTitleAndStatus((VoiceChannel) guildVoiceUpdateEvent.getChannelJoined());
@@ -156,7 +160,7 @@ public class AutoVoice {
 
         if (guildVoiceUpdateEvent.getChannelLeft() != null) {
             // If the member left a voice channel, delete it if it is an auto channel and is empty
-            Document channelData = collection.find(new Document("channelId", guildVoiceUpdateEvent.getChannelLeft().getIdLong())).first();
+            Document channelData = collection.find(new Document("guildId", guild.getIdLong()).append("channelId", guildVoiceUpdateEvent.getChannelLeft().getIdLong())).first();
             if (channelData != null) {
                 VoiceChannel channel = (VoiceChannel) guildVoiceUpdateEvent.getChannelLeft();
                 if (channel.getMembers().isEmpty()) {
@@ -174,7 +178,7 @@ public class AutoVoice {
      */
     private static void updateTitleAndStatus(VoiceChannel channel) {
         // Check if auto-update is enabled for the channel
-        Document channelData = collection.find(new Document("channelId", channel.getIdLong())).first();
+        Document channelData = collection.find(new Document("guildId", channel.getGuild().getIdLong()).append("channelId", channel.getIdLong())).first();
         if (channelData != null && !channelData.getBoolean("isAuto", true)) return;
 
         String[] result = getChannelNameAndStatus(channel.getMembers());

@@ -55,6 +55,8 @@ public class Settings {
     }
 
     public static boolean updateSetting(long guildId, String setting, Object value) {
+        if (collection.find(Filters.eq("guildId", guildId)).first() == null)
+            collection.insertOne(new Document("guildId", guildId).append("commandPrefix", "!"));
         UpdateResult result = collection.updateOne(Filters.eq("guildId", guildId), Updates.set(setting, value));
         return result.wasAcknowledged();
     }
