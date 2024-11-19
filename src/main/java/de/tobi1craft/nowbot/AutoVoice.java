@@ -3,6 +3,7 @@ package de.tobi1craft.nowbot;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
@@ -41,6 +42,7 @@ public class AutoVoice {
 
 
     public static void messageReceivedEvent(MessageReceivedEvent messageReceivedEvent) {
+        if(!messageReceivedEvent.isFromGuild()) return;
         Document channelData = collection.find(new Document("guildId", messageReceivedEvent.getGuild().getIdLong()).append("channelId", messageReceivedEvent.getChannel().getIdLong())).first();
         if (channelData == null) return;
         Message message = messageReceivedEvent.getMessage();
@@ -127,6 +129,10 @@ public class AutoVoice {
         Member user = guildVoiceUpdateEvent.getEntity();
 
         if (guildVoiceUpdateEvent.getChannelJoined() != null) {
+            if (!((boolean) Settings.getSetting(guild.getIdLong(), "offlineVoice")) && user.getOnlineStatus() == OnlineStatus.OFFLINE) {
+                user.getUser().openPrivateChannel().flatMap(privateChannel -> privateChannel.sendMessage("You need to be ONLINE to join channels on this server! (Server: " + guild.getName() + ")")).queue();
+                guild.kickVoiceMember(user).queue();
+            }
             // If the member joined the auto voice creation channel, create a new voice channel
             if (Settings.containsSetting(guild.getIdLong(), "autoVoiceCategoryId") && Settings.containsSetting(guild.getIdLong(), "autoVoiceChannelId")) {
                 if (guildVoiceUpdateEvent.getChannelJoined().getIdLong() == Settings.getSettingAsLong(guild.getIdLong(), "autoVoiceChannelId")) {

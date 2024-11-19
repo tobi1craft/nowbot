@@ -1,6 +1,7 @@
 package de.tobi1craft.nowbot;
 
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Filters;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
@@ -18,20 +19,21 @@ import net.dv8tion.jda.api.hooks.EventListener;
 import org.bson.Document;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashMap;
+
 public class EventManager implements EventListener {
 
-    MongoDatabase database = Database.get();
+    private final static MongoCollection<Document> collection = Database.get().getCollection("settings");
 
     @Override
     public void onEvent(@NotNull GenericEvent event) {
         if (event instanceof GuildReadyEvent guildReadyEvent) {
+            initDatabaseForGuild(guildReadyEvent.getGuild().getIdLong());
             guildReadyEvent.getGuild().updateCommands().addCommands(NowBot.commands).queue();
             //GameRoles.updateMessageRoles(guildReadyEvent.getGuild()); not releasing
 
         } else if (event instanceof GuildJoinEvent guildJoinEvent) {
-            long id = guildJoinEvent.getGuild().getIdLong();
-            //insert default values
-            database.getCollection("settings").insertOne(new Document("guildId", id).append("commandPrefix", "!"));
+            initDatabaseForGuild(guildJoinEvent.getGuild().getIdLong());
             //GameRoles.updateMessageRoles(guildJoinEvent.getGuild()); not releasing
 
         } else if (event instanceof SlashCommandInteractionEvent slashCommandInteractionEvent) {
@@ -55,5 +57,21 @@ public class EventManager implements EventListener {
             //GameRoles.updateMessageRoles(roleUpdateNameEvent.getGuild()); not releasing
 
         }
+    }
+
+    public static void initDatabaseForGuild(long guildId) {
+        if (collection.find(Filters.eq("guildId", guildId)).first() == null)
+            collection.insertOne(new Document("guildId", guildId));
+
+        HashMap<String, Object> defaultSettings = new HashMap<>();
+        defaultSettings.put("commandPrefix", "!");
+        defaultSettings.put("offlineVoice", true);
+
+        for (String setting : defaultSettings.keySet()) {
+            if (!Settings.containsSetting(guildId, setting))
+                Settings.updateSetting(guildId, setting, defaultSettings.get(setting));
+        }
+
+
     }
 }

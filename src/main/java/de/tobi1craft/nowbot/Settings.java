@@ -18,9 +18,6 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Objects;
 
 public class Settings {
-    public static long autoVoiceCategory = 1192163622777012274L;
-    public static long autoVoiceChannel = 1192154348445249617L;
-    public static long autoVoiceRoleToOverridePermissions = 1175830197589778462L;
     //TODO: Language setting, translation
     private static MongoCollection<Document> collection;
 
@@ -36,7 +33,8 @@ public class Settings {
                 .addChoice("AutoVoice Channel (requires channel)", "autoVoiceChannel")
                 .addChoice("AutoVoice Role To Override Permissions (requires role)", "autoVoiceRoleToOverridePermissions")
                 .addChoice("Game Roles Channel (requires channel)", "rolesChannel")
-                .addChoice("Command Prefix (requires string)", "commandPrefix");
+                .addChoice("Command Prefix (requires string)", "commandPrefix")
+                .addChoice("Offline Voice (requires boolean)", "offlineVoice");
 
         OptionData bool = new OptionData(OptionType.BOOLEAN, "boolean", "Sets a true/false value (if needed)").setRequired(false);
 
@@ -56,7 +54,7 @@ public class Settings {
 
     public static boolean updateSetting(long guildId, String setting, Object value) {
         if (collection.find(Filters.eq("guildId", guildId)).first() == null)
-            collection.insertOne(new Document("guildId", guildId).append("commandPrefix", "!"));
+            EventManager.initDatabaseForGuild(guildId);
         UpdateResult result = collection.updateOne(Filters.eq("guildId", guildId), Updates.set(setting, value));
         return result.wasAcknowledged();
     }
@@ -75,7 +73,7 @@ public class Settings {
 
     public static boolean containsSetting(long guildId, String setting) {
         if (collection.find(Filters.eq("guildId", guildId)).first() == null)
-            collection.insertOne(new Document("guildId", guildId).append("commandPrefix", "!"));
+            EventManager.initDatabaseForGuild(guildId);
         return Objects.requireNonNull(collection.find(Filters.eq("guildId", guildId)).first()).containsKey(setting);
     }
 
@@ -101,6 +99,15 @@ public class Settings {
                         if (option == null) return false;
                         if (updateSetting(guildId, setting + "Id", option.getAsRole().getIdLong())) {
                             slashCommandInteractionEvent.reply("✅ -> " + setting + " is now " + option.getAsRole().getName()).queue();
+                            return true;
+                        }
+                        break;
+                    }
+                    case "offlineVoice": {
+                        OptionMapping option = slashCommandInteractionEvent.getOption("boolean");
+                        if (option == null) return false;
+                        if (updateSetting(guildId, setting, option.getAsBoolean())) {
+                            slashCommandInteractionEvent.reply("✅ -> " + setting + " is now " + option.getAsString()).queue();
                             return true;
                         }
                         break;
