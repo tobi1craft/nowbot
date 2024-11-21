@@ -1,6 +1,5 @@
 package de.tobi1craft.nowbot;
 
-import com.mongodb.client.MongoDatabase;
 import io.github.cdimascio.dotenv.Dotenv;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;

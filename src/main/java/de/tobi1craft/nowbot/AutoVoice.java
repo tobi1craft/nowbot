@@ -42,7 +42,7 @@ public class AutoVoice {
 
 
     public static void messageReceivedEvent(MessageReceivedEvent messageReceivedEvent) {
-        if(!messageReceivedEvent.isFromGuild()) return;
+        if (!messageReceivedEvent.isFromGuild()) return;
         Document channelData = collection.find(new Document("guildId", messageReceivedEvent.getGuild().getIdLong()).append("channelId", messageReceivedEvent.getChannel().getIdLong())).first();
         if (channelData == null) return;
         Message message = messageReceivedEvent.getMessage();
@@ -129,12 +129,13 @@ public class AutoVoice {
         Member user = guildVoiceUpdateEvent.getEntity();
 
         if (guildVoiceUpdateEvent.getChannelJoined() != null) {
+            //Don't allow offline users to connect if offlineVoice is false
             if (!((boolean) Settings.getSetting(guild.getIdLong(), "offlineVoice")) && user.getOnlineStatus() == OnlineStatus.OFFLINE) {
                 user.getUser().openPrivateChannel().flatMap(privateChannel -> privateChannel.sendMessage("You need to be ONLINE to join channels on this server! (Server: " + guild.getName() + ")")).queue();
                 guild.kickVoiceMember(user).queue();
             }
             // If the member joined the auto voice creation channel, create a new voice channel
-            if (Settings.containsSetting(guild.getIdLong(), "autoVoiceCategoryId") && Settings.containsSetting(guild.getIdLong(), "autoVoiceChannelId")) {
+            else if (Settings.containsSetting(guild.getIdLong(), "autoVoiceCategoryId") && Settings.containsSetting(guild.getIdLong(), "autoVoiceChannelId")) {
                 if (guildVoiceUpdateEvent.getChannelJoined().getIdLong() == Settings.getSettingAsLong(guild.getIdLong(), "autoVoiceChannelId")) {
                     String[] channelNameAndStatus = getChannelNameAndStatus(List.of(user));
                     guild.createVoiceChannel(channelNameAndStatus[0], guild.getCategoryById(Settings.getSettingAsLong(guild.getIdLong(), "autoVoiceCategoryId")))

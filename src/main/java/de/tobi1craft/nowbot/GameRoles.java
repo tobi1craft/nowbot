@@ -12,6 +12,7 @@ import java.util.Objects;
 public class GameRoles {
 
     public static void updateMessageRoles(Guild guild) {
+        if(true) return; //TODO
         if (!Settings.containsSetting(guild.getIdLong(), "rolesChannelId")) return;
         List<String> activeGames = new ArrayList<>();
         List<Role> roles = guild.getRoles();

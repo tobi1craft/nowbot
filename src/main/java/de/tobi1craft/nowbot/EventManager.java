@@ -30,11 +30,11 @@ public class EventManager implements EventListener {
         if (event instanceof GuildReadyEvent guildReadyEvent) {
             initDatabaseForGuild(guildReadyEvent.getGuild().getIdLong());
             guildReadyEvent.getGuild().updateCommands().addCommands(NowBot.commands).queue();
-            //GameRoles.updateMessageRoles(guildReadyEvent.getGuild()); not releasing
+            GameRoles.updateMessageRoles(guildReadyEvent.getGuild());
 
         } else if (event instanceof GuildJoinEvent guildJoinEvent) {
             initDatabaseForGuild(guildJoinEvent.getGuild().getIdLong());
-            //GameRoles.updateMessageRoles(guildJoinEvent.getGuild()); not releasing
+            GameRoles.updateMessageRoles(guildJoinEvent.getGuild());
 
         } else if (event instanceof SlashCommandInteractionEvent slashCommandInteractionEvent) {
             if (!slashCommandInteractionEvent.isFromGuild()) {
@@ -54,8 +54,7 @@ public class EventManager implements EventListener {
             AutoVoice.messageReceivedEvent(messageReceivedEvent);
 
         } else if (event instanceof RoleUpdateNameEvent roleUpdateNameEvent) {
-            //GameRoles.updateMessageRoles(roleUpdateNameEvent.getGuild()); not releasing
-
+            GameRoles.updateMessageRoles(roleUpdateNameEvent.getGuild());
         }
     }
 
