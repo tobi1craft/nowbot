@@ -44,7 +44,7 @@ public class Settings {
 
         OptionData role = new OptionData(OptionType.ROLE, "role", "Sets a role value (if needed)").setRequired(false);
 
-        // Add the settings command to the bot's command list
+
         NowBot.commands.add(Commands.slash("setting", "Modify the settings of the bot").addOptions(setting, bool, string, channel, role).setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.USE_APPLICATION_COMMANDS)));
 
         NowBot.commands.add(Commands.slash("settings", "Get a list of your current settings").setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.USE_APPLICATION_COMMANDS)));
@@ -81,15 +81,18 @@ public class Settings {
         switch (slashCommandInteractionEvent.getName()) {
             case "setting" -> {
                 long guildId = Objects.requireNonNull(slashCommandInteractionEvent.getGuild()).getIdLong();
+                //TODO: no setting argument handling
+                //TODO: return value for settings command when no option but setting
                 String setting = Objects.requireNonNull(slashCommandInteractionEvent.getOption("setting")).getAsString();
                 switch (setting) {
+                    //TODO: maybe auslagern zu Methode
                     case "autoVoiceCategory":
                     case "autoVoiceChannel":
                     case "rolesChannel": {
                         OptionMapping option = slashCommandInteractionEvent.getOption("channel");
                         if (option == null) return false;
                         if (updateSetting(guildId, setting + "Id", option.getAsChannel().getIdLong())) {
-                            slashCommandInteractionEvent.reply("✅ -> " + setting + " is now " + option.getAsChannel().getName()).queue();
+                            slashCommandInteractionEvent.reply("✅ -> " + setting + " is now " + option.getAsChannel().getName()).setEphemeral(true).queue();
                             return true;
                         }
                         break;
@@ -98,7 +101,7 @@ public class Settings {
                         OptionMapping option = slashCommandInteractionEvent.getOption("role");
                         if (option == null) return false;
                         if (updateSetting(guildId, setting + "Id", option.getAsRole().getIdLong())) {
-                            slashCommandInteractionEvent.reply("✅ -> " + setting + " is now " + option.getAsRole().getName()).queue();
+                            slashCommandInteractionEvent.reply("✅ -> " + setting + " is now " + option.getAsRole().getName()).setEphemeral(true).queue();
                             return true;
                         }
                         break;
@@ -107,7 +110,7 @@ public class Settings {
                         OptionMapping option = slashCommandInteractionEvent.getOption("boolean");
                         if (option == null) return false;
                         if (updateSetting(guildId, setting, option.getAsBoolean())) {
-                            slashCommandInteractionEvent.reply("✅ -> " + setting + " is now " + option.getAsString()).queue();
+                            slashCommandInteractionEvent.reply("✅ -> " + setting + " is now " + option.getAsString()).setEphemeral(true).queue();
                             return true;
                         }
                         break;
@@ -116,7 +119,7 @@ public class Settings {
                         OptionMapping option = slashCommandInteractionEvent.getOption("string");
                         if (option == null || option.getAsString().contains(" ")) return false;
                         if (updateSetting(guildId, setting, option.getAsString())) {
-                            slashCommandInteractionEvent.reply("✅ -> " + setting + " is now " + option.getAsString()).queue();
+                            slashCommandInteractionEvent.reply("✅ -> " + setting + " is now " + option.getAsString()).setEphemeral(true).queue();
                             return true;
                         }
                         break;
@@ -129,8 +132,7 @@ public class Settings {
                 return true;
             }
             case "settings" -> {
-                slashCommandInteractionEvent.reply("TODO").setEphemeral(true).queue(); //TODO: List current settings
-                return true;
+                return printCurrentSetting(slashCommandInteractionEvent);
             }
             case "help" -> {
                 slashCommandInteractionEvent.reply("TODO").setEphemeral(true).queue(); //TODO: Help command
@@ -138,5 +140,10 @@ public class Settings {
             }
         }
         return false;
+    }
+
+    private static boolean printCurrentSetting(SlashCommandInteractionEvent slashCommandInteractionEvent) {
+        slashCommandInteractionEvent.reply("TODO").setEphemeral(true).queue(); //TODO: List current settings
+        return true;
     }
 }
