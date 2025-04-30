@@ -39,5 +39,4 @@ bin/
 .DS_Store
 
 ### Custom ###
-commands.txt
 .env

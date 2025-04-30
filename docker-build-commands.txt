@@ -1,0 +1,4 @@
+They are here because I forget them and I don't want to search every time I need them.
+
+docker build --platform linux/arm64 -t registry.tobi1craft.de/tobi1craft/nowbot:XX .
+docker push registry.tobi1craft.de/tobi1craft/nowbot:XX
