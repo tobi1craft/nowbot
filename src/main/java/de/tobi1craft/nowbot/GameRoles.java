@@ -56,12 +56,9 @@ public class GameRoles {
     private static void addGames(List<String> list) {
         list.add("VALORANT");
         list.add("MINECRAFT");
-        list.add("XDEFIANT");
         list.add("ENSHROUDED");
         list.add("VALHEIM");
-        list.add("SPECTRE DIVIDE");
         list.add("TRACKMANIA");
         list.add("COUNTERSTRIKE");
-        list.add("DEADLOCK");
     }
 }

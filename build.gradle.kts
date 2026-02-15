@@ -12,11 +12,11 @@ repositories {
 }
 
 dependencies {
-    implementation("net.dv8tion:JDA:5.3.1")
-    implementation("org.mongodb:mongodb-driver-sync:5.3.0")
-    implementation("org.apache.logging.log4j:log4j-api:2.24.3")
-    runtimeOnly("org.apache.logging.log4j:log4j-core:2.24.3")
-    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.24.3")
+    implementation("net.dv8tion:JDA:6.3.1")
+    implementation("org.mongodb:mongodb-driver-sync:5.6.3")
+    implementation("org.apache.logging.log4j:log4j-api:2.25.3")
+    runtimeOnly("org.apache.logging.log4j:log4j-core:2.25.3")
+    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
     implementation("io.github.cdimascio:dotenv-java:3.2.0")
 }
 
@@ -39,7 +39,7 @@ application {
 }
 
 tasks.compileJava {
-    options.release.set(23)
+    options.release.set(25)
     //options.encoding = "UTF-8"
 }
 
@@ -60,9 +60,9 @@ tasks.jar {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_23
-    targetCompatibility = JavaVersion.VERSION_23
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(23))
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
 }
