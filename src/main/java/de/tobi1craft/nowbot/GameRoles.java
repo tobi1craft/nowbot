@@ -27,7 +27,6 @@ public class GameRoles {
 
 
         MessageCreateBuilder messageCreateBuilder = new MessageCreateBuilder();
-        messageCreateBuilder.addActionRow();
 
 
 

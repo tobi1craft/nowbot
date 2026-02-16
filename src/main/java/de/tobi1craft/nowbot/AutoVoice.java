@@ -190,7 +190,7 @@ public class AutoVoice {
 
         String[] result = getChannelNameAndStatus(channel.getMembers());
 
-        channel.getManager().setName(result[0]).queue();
+        if (!channel.getName().equals(result[0])) channel.getManager().setName(result[0]).queue();
         updateStatus(channel, result[1]);
     }
 
@@ -207,10 +207,15 @@ public class AutoVoice {
 
         for (Member member : users) {
             for (Activity activity : member.getActivities()) {
+                if (!isGameActivityType(activity.getType())) continue;
+
+                if (activity.getName().equalsIgnoreCase("Hang Status")) continue;
+
                 if (activity instanceof RichPresence richPresence) {
                     if (richPresence.getName().toLowerCase().contains("medal")) continue;
                     else if (richPresence.getName().toLowerCase().contains("badlion")) continue;
                 }
+
                 // Update the count of the game activity in the map
                 games.put(activity.getName(), games.getOrDefault(activity.getName(), 0) + 1);
             }
@@ -244,5 +249,11 @@ public class AutoVoice {
             result[1] = description.toString();
         }
         return result;
+    }
+
+    private static boolean isGameActivityType(Activity.ActivityType type) {
+        return type == Activity.ActivityType.PLAYING
+                || type == Activity.ActivityType.STREAMING
+                || type == Activity.ActivityType.COMPETING;
     }
 }
