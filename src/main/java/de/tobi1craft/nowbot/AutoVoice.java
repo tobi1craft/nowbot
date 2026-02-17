@@ -144,7 +144,9 @@ public class AutoVoice {
         if (guildVoiceUpdateEvent.getChannelJoined() != null) {
             //Don't allow offline users to connect if offlineVoice is false
             if (!((boolean) Settings.getSetting(guild.getIdLong(), "offlineVoice")) && user.getOnlineStatus() == OnlineStatus.OFFLINE) {
-                user.getUser().openPrivateChannel().flatMap(privateChannel -> privateChannel.sendMessage("You need to be ONLINE to join channels on this server! (Server: " + guild.getName() + ")")).queue();
+                user.getUser().openPrivateChannel().flatMap(privateChannel -> privateChannel.sendMessage(
+                        Language.get("autoVoice.offlineVoiceJoinDenied", guild.getName())
+                )).queue();
                 guild.kickVoiceMember(user).queue();
             }
             // If the member joined the auto voice creation channel, create a new voice channel
@@ -298,7 +300,7 @@ public class AutoVoice {
         gamesList.sort(Map.Entry.comparingByValue());
         Collections.reverse(gamesList);
 
-        String channelName = "Spiel unbekannt";
+        String channelName = Language.get("autoVoice.defaultChannelName");
 
         // If there are game activities, pick the most frequent activity for the channel title.
         if (!gamesList.isEmpty()) {
@@ -320,7 +322,7 @@ public class AutoVoice {
         if (statusGames.isEmpty()) {
             result[1] = "";
         } else {
-            StringBuilder description = new StringBuilder(Language.get("autoVoice.alsoPlaying") + " ");
+            StringBuilder description = new StringBuilder("+ ");
             for (int i = 0; i < statusGames.size() - 1; i++) {
                 description.append(statusGames.get(i)).append(", ");
             }

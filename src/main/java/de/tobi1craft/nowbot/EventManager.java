@@ -38,7 +38,7 @@ public class EventManager implements EventListener {
 
         } else if (event instanceof SlashCommandInteractionEvent slashCommandInteractionEvent) {
             if (!slashCommandInteractionEvent.isFromGuild()) {
-                slashCommandInteractionEvent.reply("You need to execute on a server!").queue();
+                slashCommandInteractionEvent.reply(Language.get("eventManager.serverOnlyExecution")).queue();
                 return;
             }
             if (!Settings.slashCommandInteraction(slashCommandInteractionEvent))

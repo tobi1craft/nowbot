@@ -17,4 +17,8 @@ public class Language {
     public static String get(String key) {
         return messages.getString(key);
     }
+
+    public static String get(String key, Object... args) {
+        return String.format(get(key), args);
+    }
 }
