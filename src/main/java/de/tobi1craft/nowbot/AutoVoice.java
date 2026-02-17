@@ -150,7 +150,7 @@ public class AutoVoice {
             // If the member joined the auto voice creation channel, create a new voice channel
             else if (Settings.containsSetting(guild.getIdLong(), "autoVoiceCategoryId") && Settings.containsSetting(guild.getIdLong(), "autoVoiceChannelId")) {
                 if (guildVoiceUpdateEvent.getChannelJoined().getIdLong() == Settings.getSettingAsLong(guild.getIdLong(), "autoVoiceChannelId")) {
-                    String[] channelNameAndStatus = getChannelNameAndStatus(List.of(user));
+                    String[] channelNameAndStatus = getChannelNameAndStatus(List.of(user), null);
                     guild.createVoiceChannel(channelNameAndStatus[0], guild.getCategoryById(Settings.getSettingAsLong(guild.getIdLong(), "autoVoiceCategoryId")))
                             .queue(voiceChannel -> {
                                 guild.moveVoiceMember(user, voiceChannel).queue();
@@ -201,7 +201,7 @@ public class AutoVoice {
         Document channelData = collection.find(new Document("guildId", channel.getGuild().getIdLong()).append("channelId", channel.getIdLong())).first();
         if (channelData != null && !channelData.getBoolean("isAuto", true)) return;
 
-        String[] result = getChannelNameAndStatus(channel.getMembers());
+        String[] result = getChannelNameAndStatus(channel.getMembers(), channel.getName());
 
         requestChannelRename(channel, result[0]);
         updateStatus(channel, result[1]);
@@ -242,6 +242,11 @@ public class AutoVoice {
         channel.getManager().setName(desiredName).queue(
                 _ -> {
                     latestRequestedChannelNames.remove(channelId, desiredName);
+                    VoiceChannel latestChannel = guild.getVoiceChannelById(channelId);
+                    if (latestChannel != null) {
+                        String[] latestNameAndStatus = getChannelNameAndStatus(latestChannel.getMembers(), latestChannel.getName());
+                        updateStatus(latestChannel, latestNameAndStatus[1]);
+                    }
                     if (latestRequestedChannelNames.containsKey(channelId)) {
                         processLatestRename(guild, channelId);
                     } else {
@@ -269,7 +274,7 @@ public class AutoVoice {
         channel.modifyStatus(content).queue();
     }
 
-    private static String[] getChannelNameAndStatus(List<Member> users) {
+    private static String[] getChannelNameAndStatus(List<Member> users, String currentChannelName) {
         Map<String, Integer> games = new HashMap<>();
 
         for (Member member : users) {
@@ -295,24 +300,31 @@ public class AutoVoice {
 
         String channelName = "Spiel unbekannt";
 
-        // If there are game activities, update the channel name to the most frequent activity
+        // If there are game activities, pick the most frequent activity for the channel title.
         if (!gamesList.isEmpty()) {
             channelName = gamesList.getFirst().getKey();
-            gamesList.removeFirst();
         }
 
         String[] result = new String[2];
         result[0] = channelName;
 
-        // Add remaining games to the channel description
-        if (gamesList.isEmpty()) {
+        // Build the status against the currently visible channel title to avoid duplicate entries
+        // while a delayed rename is still pending.
+        String displayedChannelName = currentChannelName == null ? channelName : currentChannelName;
+        List<String> statusGames = new ArrayList<>();
+        for (Map.Entry<String, Integer> game : gamesList) {
+            if (game.getKey().equalsIgnoreCase(displayedChannelName)) continue;
+            statusGames.add(game.getKey());
+        }
+
+        if (statusGames.isEmpty()) {
             result[1] = "";
         } else {
             StringBuilder description = new StringBuilder(Language.get("autoVoice.alsoPlaying") + " ");
-            for (int i = 0; i < gamesList.size() - 1; i++) {
-                description.append(gamesList.get(i).getKey()).append(", ");
+            for (int i = 0; i < statusGames.size() - 1; i++) {
+                description.append(statusGames.get(i)).append(", ");
             }
-            description.append(gamesList.getLast().getKey());
+            description.append(statusGames.getLast());
             result[1] = description.toString();
         }
         return result;
