@@ -3,6 +3,7 @@ package de.tobi1craft.nowbot;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import de.tobi1craft.nowbot.util.Bucket;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
@@ -14,6 +15,7 @@ import net.dv8tion.jda.api.events.user.update.GenericUserPresenceEvent;
 import org.bson.Document;
 
 import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * This class listens for events related to voice channels and user presence in a Discord server.
@@ -21,6 +23,17 @@ import java.util.*;
  */
 public class AutoVoice {
 
+    private static final int RENAME_BUCKET_CAPACITY = 2;
+    private static final long RENAME_BUCKET_WINDOW_MS = TimeUnit.MINUTES.toMillis(10);
+    private static final long SCHEDULER_JITTER_MS = 100;
+    private static final ConcurrentMap<Long, String> latestRequestedChannelNames = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Long, Bucket> renameBuckets = new ConcurrentHashMap<>();
+    private static final Set<Long> renamesInFlight = ConcurrentHashMap.newKeySet();
+    private static final ScheduledExecutorService renameScheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "auto-voice-rename-scheduler");
+        thread.setDaemon(true);
+        return thread;
+    });
     private static MongoCollection<Document> collection;
 
     public static void init() {
@@ -190,8 +203,62 @@ public class AutoVoice {
 
         String[] result = getChannelNameAndStatus(channel.getMembers());
 
-        if (!channel.getName().equals(result[0])) channel.getManager().setName(result[0]).queue();
+        requestChannelRename(channel, result[0]);
         updateStatus(channel, result[1]);
+    }
+
+    private static void requestChannelRename(VoiceChannel channel, String desiredName) {
+        long channelId = channel.getIdLong();
+        latestRequestedChannelNames.put(channelId, desiredName);
+        if (!renamesInFlight.add(channelId)) return;
+        processLatestRename(channel.getGuild(), channelId);
+    }
+
+    private static void processLatestRename(Guild guild, long channelId) {
+        VoiceChannel channel = guild.getVoiceChannelById(channelId);
+        if (channel == null) {
+            latestRequestedChannelNames.remove(channelId);
+            renamesInFlight.remove(channelId);
+            return;
+        }
+
+        String desiredName = latestRequestedChannelNames.get(channelId);
+        if (desiredName == null || channel.getName().equals(desiredName)) {
+            latestRequestedChannelNames.remove(channelId);
+            renamesInFlight.remove(channelId);
+            if (latestRequestedChannelNames.containsKey(channelId) && renamesInFlight.add(channelId)) {
+                processLatestRename(guild, channelId);
+            }
+            return;
+        }
+
+        Bucket bucket = renameBuckets.computeIfAbsent(channelId, _ -> new Bucket(RENAME_BUCKET_CAPACITY, RENAME_BUCKET_WINDOW_MS));
+        if (!bucket.tryConsume()) {
+            long waitMs = bucket.getWaitMs() + SCHEDULER_JITTER_MS;
+            renameScheduler.schedule(() -> processLatestRename(guild, channelId), waitMs, TimeUnit.MILLISECONDS);
+            return;
+        }
+
+        channel.getManager().setName(desiredName).queue(
+                _ -> {
+                    latestRequestedChannelNames.remove(channelId, desiredName);
+                    if (latestRequestedChannelNames.containsKey(channelId)) {
+                        processLatestRename(guild, channelId);
+                    } else {
+                        renamesInFlight.remove(channelId);
+                    }
+                },
+                failure -> {
+                    NowBot.logger.warn(
+                            "Failed to rename auto voice channel {} in guild {} to '{}'",
+                            channelId,
+                            guild.getIdLong(),
+                            desiredName,
+                            failure
+                    );
+                    renamesInFlight.remove(channelId);
+                }
+        );
     }
 
     private static void updateStatus(VoiceChannel channel, String content) {
