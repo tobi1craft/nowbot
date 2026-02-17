@@ -44,11 +44,15 @@ public class AutoVoice {
     public static void genericUserPresenceEvent(GenericUserPresenceEvent e) {
         // Iterate through created channels and update their names and statuses based on user presence
         long guildId = e.getGuild().getIdLong();
-        FindIterable<Document> channels = collection.find();
+        FindIterable<Document> channels = collection.find(new Document("guildId", guildId));
         for (Document channel : channels) {
-            if (guildId != channel.getLong("guildId")) continue;
             long channelId = channel.getLong("channelId");
-            VoiceChannel voiceChannel = Objects.requireNonNull(e.getGuild().getVoiceChannelById(channelId));
+            VoiceChannel voiceChannel = e.getGuild().getVoiceChannelById(channelId);
+            if (voiceChannel == null) {
+                collection.deleteOne(channel);
+                cleanupChannelRenameState(channelId);
+                continue;
+            }
             if (voiceChannel.getMembers().contains(e.getMember())) updateTitleAndStatus(voiceChannel);
         }
     }
@@ -168,13 +172,10 @@ public class AutoVoice {
                             });
                 } else {
                     // If the member joined a different auto voice channel, update the name and status of the channel
-                    FindIterable<Document> channels = collection.find();
-                    for (Document channel : channels) {
-                        if (guild.getIdLong() != channel.getLong("guildId")) continue;
-                        long channelId = channel.getLong("channelId");
-                        if (guildVoiceUpdateEvent.getChannelJoined().getIdLong() != channelId) continue;
+                    long joinedChannelId = guildVoiceUpdateEvent.getChannelJoined().getIdLong();
+                    Document autoChannelData = collection.find(new Document("guildId", guild.getIdLong()).append("channelId", joinedChannelId)).first();
+                    if (autoChannelData != null) {
                         updateTitleAndStatus((VoiceChannel) guildVoiceUpdateEvent.getChannelJoined());
-                        break;
                     }
                 }
             }
@@ -188,6 +189,7 @@ public class AutoVoice {
                 if (channel.getMembers().isEmpty()) {
                     channel.delete().queue();
                     collection.deleteOne(channelData);
+                    cleanupChannelRenameState(channel.getIdLong());
                 }
             }
         }
@@ -219,18 +221,14 @@ public class AutoVoice {
     private static void processLatestRename(Guild guild, long channelId) {
         VoiceChannel channel = guild.getVoiceChannelById(channelId);
         if (channel == null) {
-            latestRequestedChannelNames.remove(channelId);
-            renamesInFlight.remove(channelId);
+            cleanupChannelRenameState(channelId);
             return;
         }
 
         String desiredName = latestRequestedChannelNames.get(channelId);
         if (desiredName == null || channel.getName().equals(desiredName)) {
             latestRequestedChannelNames.remove(channelId);
-            renamesInFlight.remove(channelId);
-            if (latestRequestedChannelNames.containsKey(channelId) && renamesInFlight.add(channelId)) {
-                processLatestRename(guild, channelId);
-            }
+            releaseRenameAndContinueIfPending(guild, channelId);
             return;
         }
 
@@ -249,11 +247,8 @@ public class AutoVoice {
                         String[] latestNameAndStatus = getChannelNameAndStatus(latestChannel.getMembers(), latestChannel.getName());
                         updateStatus(latestChannel, latestNameAndStatus[1]);
                     }
-                    if (latestRequestedChannelNames.containsKey(channelId)) {
-                        processLatestRename(guild, channelId);
-                    } else {
-                        renamesInFlight.remove(channelId);
-                    }
+
+                    releaseRenameAndContinueIfPending(guild, channelId);
                 },
                 failure -> {
                     NowBot.logger.warn(
@@ -266,6 +261,19 @@ public class AutoVoice {
                     renamesInFlight.remove(channelId);
                 }
         );
+    }
+
+    private static void cleanupChannelRenameState(long channelId) {
+        latestRequestedChannelNames.remove(channelId);
+        renameBuckets.remove(channelId);
+        renamesInFlight.remove(channelId);
+    }
+
+    private static void releaseRenameAndContinueIfPending(Guild guild, long channelId) {
+        renamesInFlight.remove(channelId);
+        if (latestRequestedChannelNames.containsKey(channelId) && renamesInFlight.add(channelId)) {
+            processLatestRename(guild, channelId);
+        }
     }
 
     private static void updateStatus(VoiceChannel channel, String content) {
