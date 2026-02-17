@@ -29,6 +29,7 @@ public class AutoVoice {
     private static final ConcurrentMap<Long, String> latestRequestedChannelNames = new ConcurrentHashMap<>();
     private static final ConcurrentMap<Long, Bucket> renameBuckets = new ConcurrentHashMap<>();
     private static final Set<Long> renamesInFlight = ConcurrentHashMap.newKeySet();
+    private static final Set<Long> rateLimitedRenames = ConcurrentHashMap.newKeySet();
     private static final ScheduledExecutorService renameScheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "auto-voice-rename-scheduler");
         thread.setDaemon(true);
@@ -205,9 +206,13 @@ public class AutoVoice {
         Document channelData = collection.find(new Document("guildId", channel.getGuild().getIdLong()).append("channelId", channel.getIdLong())).first();
         if (channelData != null && !channelData.getBoolean("isAuto", true)) return;
 
-        String[] result = getChannelNameAndStatus(channel.getMembers(), channel.getName());
+        String[] result = getChannelNameAndStatus(channel.getMembers(), null);
 
         requestChannelRename(channel, result[0]);
+
+        if (rateLimitedRenames.contains(channel.getIdLong()))
+            result = getChannelNameAndStatus(channel.getMembers(), channel.getName());
+
         updateStatus(channel, result[1]);
     }
 
@@ -228,16 +233,19 @@ public class AutoVoice {
         String desiredName = latestRequestedChannelNames.get(channelId);
         if (desiredName == null || channel.getName().equals(desiredName)) {
             latestRequestedChannelNames.remove(channelId);
+            rateLimitedRenames.remove(channelId);
             releaseRenameAndContinueIfPending(guild, channelId);
             return;
         }
 
         Bucket bucket = renameBuckets.computeIfAbsent(channelId, _ -> new Bucket(RENAME_BUCKET_CAPACITY, RENAME_BUCKET_WINDOW_MS));
         if (!bucket.tryConsume()) {
+            rateLimitedRenames.add(channelId);
             long waitMs = bucket.getWaitMs() + SCHEDULER_JITTER_MS;
             renameScheduler.schedule(() -> processLatestRename(guild, channelId), waitMs, TimeUnit.MILLISECONDS);
             return;
         }
+        rateLimitedRenames.remove(channelId);
 
         channel.getManager().setName(desiredName).queue(
                 _ -> {
@@ -258,6 +266,7 @@ public class AutoVoice {
                             desiredName,
                             failure
                     );
+                    rateLimitedRenames.remove(channelId);
                     renamesInFlight.remove(channelId);
                 }
         );
@@ -267,6 +276,7 @@ public class AutoVoice {
         latestRequestedChannelNames.remove(channelId);
         renameBuckets.remove(channelId);
         renamesInFlight.remove(channelId);
+        rateLimitedRenames.remove(channelId);
     }
 
     private static void releaseRenameAndContinueIfPending(Guild guild, long channelId) {
