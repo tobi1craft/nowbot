@@ -1,4 +1,4 @@
-FROM amazoncorretto:23-alpine
+FROM amazoncorretto:25-alpine
 WORKDIR /app
 COPY build/libs/nowbot*.jar nowbot.jar
 
